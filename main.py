@@ -1,3 +1,4 @@
+import math
 import sys
 import random
 import pygame
@@ -9,18 +10,20 @@ bsize = 100
 width = int(1300/bsize)*bsize
 height = int(650/bsize)*bsize
 screen = pygame.display.set_mode((width, height))
-click = 0
 clock = pygame.time.Clock()
 player = None
 path = []
 food = None
-visited = []
 rects = []
 clicked = []
 corners = {}
 adj = {}
 cornerRect = {}
 p = None
+angle = 0
+speed = 10
+playerpos = None
+pathPos = 1
 
 def checkPoint(rect, point):
     if point[0] > rect.x and point[0] < rect.x + rect.width and point[1] > rect.y and point[1] < rect.y + rect.height:
@@ -72,12 +75,12 @@ def Djikstra():
     q.put((0, player))
     while not q.empty():
         curr = q.get()[1]
+        if curr is food:
+            q = PriorityQueue()
         for corn in adj[curr]:
-            if corn[0] is not player and corn[0] not in dist or dist[corn[0]][0] > dist[curr][0] + corn[1]:
+            if corn[0] is not player and (corn[0] not in dist or dist[corn[0]][0] > dist[curr][0] + corn[1]):
                 dist[corn[0]] = (dist[curr][0] + corn[1], curr)
-                q.put((corn[1], corn[0]))
-            if corn[0] == food:
-                q = PriorityQueue()
+                q.put((dist[corn[0]], corn[0]))
     if food in dist:
         path = []
         curr = food
@@ -111,13 +114,19 @@ def updateMatrix():
             if yes:
                 dist = int(((corn[0] - corny[0])**2 + (corn[1] - corny[1])**2)**0.5)
                 adj[corn].append((corny, dist))
-    return Djikstra()
+    d = Djikstra()
+    if d is not None:
+        d = d[::-1]
+    return d
 
 def changeObs(x, y, mode):
     global p
+    global player
+    global playerpos
+    global pathPos
     if mode and (x-bsize/2, y-bsize/2) not in corners:
         rect = (pygame.Rect(x-bsize/2, y-bsize/2, bsize, bsize))
-        if rect.collidepoint(player) or rect.collidepoint(food):
+        if rect.collidepoint(player) or rect.collidepoint(food) or rect.collidepoint(playerpos):
             return
         rects.append(rect)
         corners[rect.topleft] = True
@@ -166,16 +175,23 @@ def changeObs(x, y, mode):
                                 if rect.y >= recty.y:
                                     corners[rect.topleft] = False
                                     corners[recty.bottomright] = False
-            rects.remove(j)
-            corners.pop((j.topleft))
-            corners.pop((j.topright))
-            corners.pop((j.bottomleft))
-            corners.pop((j.bottomright))
-            clicked.remove(j)
+            try:
+                rects.remove(j)
+                corners.pop(j.topleft)
+                corners.pop(j.topright)
+                corners.pop(j.bottomleft)
+                corners.pop(j.bottomright)
+                clicked.remove(j)
+            except:
+                pass
+    corners.pop(player)
+    corners.pop(food)
+    player = playerpos
+    corners[player] = True
+    corners[food] = True
+    pathPos = 1
     p = updateMatrix()
-    # for i in corners:
-    #     print(i, corners[i])
-    # print("-----------------")
+
 
 while True:
     mousePos = pygame.mouse.get_pos()
@@ -194,37 +210,55 @@ while True:
             else:
                 click = 1
             changeObs(mousePos[0], mousePos[1], True if click == 2 else False)
-    while food is None or player is None or food[0] == player[0] and food[1] == player[1] and p is None:
-        if player in corners:
-            corners.pop(player)
-            corners.pop(food)
+    while food is None or player is None or food == player or p is None or pathPos == len(p):
+        if player in corners and food in corners:
+            try:
+                corners.pop(player)
+                corners.pop(food)
+            except:
+                pass
         player = (random.randint(0, width), random.randint(0, height))
         food = (random.randint(0, width), random.randint(0, height))
+        yes = False
+        for i in rects:
+            if i.collidepoint(player) or i.collidepoint(food):
+                food = None
+                yes = True
+                break
+        if yes:
+            continue
+        playerpos = player
+        pathPos = 1
         corners[player] = True
         corners[food] = True
         p = updateMatrix()
     for i in range(len(rects)):
         pygame.draw.rect(screen, (100, 100, 100), rects[i])
-    # for i in range(len(visited)):
-    #     for j in range(len(visited[i])):
-    #         if visited[i][j] is not None:
-    #             pygame.draw.rect(screen, (0, 100, 0), (j * bsize, i * bsize, bsize, bsize))
-    # for curr in path:
-    #     pygame.draw.rect(screen, (0, 0, 255), (curr[1] * bsize, curr[0] * bsize, bsize, bsize))
-    # if not click:
-    #     player = (path[len(path)-1][1], path[len(path)-1][0])
-    #     path.remove(path[len(path)-1])
-    for i in corners:
-        if corners[i]:
-            pygame.draw.circle(screen, (255, 0, 0), (i), 5)
-    # pygame.draw.circle(screen, (255, 0, 0), (player[0], player[1]), 10)
-    # pygame.draw.circle(screen, (0, 255, 0), (food[0], food[1]), 10)
-    for i in adj:
-        for j in adj[i]:
-            pygame.draw.line(screen, (255, 255, 0), i, j[0], 5)
+    # for i in corners:
+    #     if corners[i]:
+    #         pygame.draw.circle(screen, (255, 0, 0), (i), 5)
+    # for i in adj:
+    #     for j in adj[i]:
+    #         pygame.draw.line(screen, (255, 255, 0), i, j[0], 5)
     if p is not None:
         for i in range(len(p) - 1):
             pygame.draw.line(screen, (0, 0, 255), p[i], p[i + 1], 5)
+    if playerpos[0] != p[pathPos][0]:
+        angle = math.degrees(math.atan(-(playerpos[1] - p[pathPos][1]) / (p[pathPos][0] - playerpos[0])))
+    elif playerpos[1] < p[pathPos][1]:
+        angle = 90
+    else:
+        angle = -90
+    if p[pathPos][0] < playerpos[0]:
+        angle -= 180
+
+    playerpos = (playerpos[0] + math.cos(math.radians(angle)) * speed, playerpos[1] + math.sin(math.radians(angle)) * speed)
+    if (playerpos[0] - p[pathPos][0])**2 + (playerpos[1] - p[pathPos][1])**2 <= speed ** 2:
+        playerpos = p[pathPos]
+    if (int(playerpos[0]), int(playerpos[1])) == p[pathPos]:
+        pathPos += 1
+    pygame.draw.circle(screen, (255, 0, 0), (playerpos[0], playerpos[1]), 10)
+    pygame.draw.circle(screen, (0, 255, 0), (food[0], food[1]), 10)
     pygame.display.update()
     clock.tick(30)
 
