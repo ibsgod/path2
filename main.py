@@ -3,6 +3,7 @@ import sys
 import random
 import pygame
 import os
+import time
 from queue import PriorityQueue
 pygame.init()
 os.environ['SDL_VIDEO_CENTERED'] = '1'
@@ -70,6 +71,7 @@ def checkLine(rect, start, end):
     return False
 
 def Djikstra():
+    s = time.time()
     q = PriorityQueue()
     dist = {player: (0, player)}
     q.put((0, player))
@@ -77,10 +79,12 @@ def Djikstra():
         curr = q.get()[1]
         if curr is food:
             q = PriorityQueue()
+            break
         for corn in adj[curr]:
             if corn[0] is not player and (corn[0] not in dist or dist[corn[0]][0] > dist[curr][0] + corn[1]):
                 dist[corn[0]] = (dist[curr][0] + corn[1], curr)
-                q.put((dist[corn[0]], corn[0]))
+                q.put((dist[corn[0]][0] + int(((corn[0][0] - food[0])**2 + (corn[0][1] - food[1])**2)**0.5), corn[0]))
+    print(time.time() - s)
     if food in dist:
         path = []
         curr = food
@@ -190,6 +194,14 @@ def changeObs(x, y, mode):
     corners[player] = True
     corners[food] = True
     pathPos = 1
+    for corn in list(corners):
+        yess = False
+        for rect in rects:
+            if corn is player or corn is food or corn == rect.bottomright or corn == rect.bottomleft or corn == rect.topleft or corn == rect.topright:
+                yess = True
+                break
+        if not yess:
+            corners.pop(corn)
     p = updateMatrix()
 
 
@@ -234,12 +246,12 @@ while True:
         p = updateMatrix()
     for i in range(len(rects)):
         pygame.draw.rect(screen, (100, 100, 100), rects[i])
-    # for i in corners:
-    #     if corners[i]:
-    #         pygame.draw.circle(screen, (255, 0, 0), (i), 5)
-    # for i in adj:
-    #     for j in adj[i]:
-    #         pygame.draw.line(screen, (255, 255, 0), i, j[0], 5)
+    for i in corners:
+        if corners[i]:
+            pygame.draw.circle(screen, (255, 0, 0), (i), 5)
+    for i in adj:
+        for j in adj[i]:
+            pygame.draw.line(screen, (255, 255, 0), i, j[0], 5)
     if p is not None:
         for i in range(len(p) - 1):
             pygame.draw.line(screen, (0, 0, 255), p[i], p[i + 1], 5)
