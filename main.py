@@ -70,7 +70,7 @@ def checkLine(rect, start, end):
                 return True
     return False
 
-def Djikstra():
+def astar():
     s = time.time()
     q = PriorityQueue()
     dist = {player: (0, player)}
@@ -118,7 +118,7 @@ def updateMatrix():
             if yes:
                 dist = int(((corn[0] - corny[0])**2 + (corn[1] - corny[1])**2)**0.5)
                 adj[corn].append((corny, dist))
-    d = Djikstra()
+    d = astar()
     if d is not None:
         d = d[::-1]
     return d
