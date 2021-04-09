@@ -84,7 +84,6 @@ def astar():
             if corn[0] is not player and (corn[0] not in dist or dist[corn[0]][0] > dist[curr][0] + corn[1]):
                 dist[corn[0]] = (dist[curr][0] + corn[1], curr)
                 q.put((dist[corn[0]][0] + int(((corn[0][0] - food[0])**2 + (corn[0][1] - food[1])**2)**0.5), corn[0]))
-    print(time.time() - s)
     if food in dist:
         path = []
         curr = food
@@ -197,10 +196,10 @@ def changeObs(x, y, mode):
     for corn in list(corners):
         yess = False
         for rect in rects:
-            if corn is player or corn is food or corn == rect.bottomright or corn == rect.bottomleft or corn == rect.topleft or corn == rect.topright:
+            if corn == rect.bottomright or corn == rect.bottomleft or corn == rect.topleft or corn == rect.topright:
                 yess = True
                 break
-        if not yess:
+        if not yess and not (corn is player or corn is food):
             corners.pop(corn)
     p = updateMatrix()
 
